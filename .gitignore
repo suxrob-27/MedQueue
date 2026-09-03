@@ -4,3 +4,7 @@ my_app/migrations
 my_app/__init__.py
 src/settings.py
 src/__init__.py
+__pycache__
+.idea
+my_app/__pycache__
+src/__pycache__
