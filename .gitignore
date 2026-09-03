@@ -1,0 +1,6 @@
+.venv
+db.sqlite3
+my_app/migrations
+my_app/__init__.py
+src/settings.py
+src/__init__.py
