@@ -1,0 +1,21 @@
+{% extends 'components/base.html' %}
+{% load static %}
+
+{% block title %}Profil to'liq emas — MedQueue{% endblock %}
+
+{% block main %}
+<div class="dashboard">
+    <div style="max-width:520px;margin:60px auto;text-align:center;
+                background:white;border-radius:var(--radius);padding:48px 32px;
+                box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+        <i class="fas fa-hourglass-half" style="font-size:42px;color:var(--primary);opacity:0.5;margin-bottom:20px;display:block;"></i>
+        <h2 style="font-size:20px;color:var(--dark);margin-bottom:12px;">{{ title|default:"Profilingiz hali tayyor emas" }}</h2>
+        <p style="color:var(--gray);font-size:14px;line-height:1.6;margin-bottom:24px;">
+            {{ message|default:"Hisobingiz uchun kerakli profil ma'lumotlari hali to'liq emas. Iltimos, administrator bilan bog'laning." }}
+        </p>
+        <a href="{% url 'logout' %}" class="btn-login" style="display:inline-flex;">
+            <i class="fas fa-sign-out-alt"></i> Chiqish
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,541 @@
+{% extends 'components/base.html' %}
+{% load static %}
+
+{% block title %}Shifokor Paneli — MedQueue{% endblock %}
+
+{% block main %}
+<div class="dashboard">
+
+    <!-- HEADER -->
+    <div class="dashboard-header">
+        <div class="dashboard-header-content">
+            <div class="dashboard-greeting">Shifokor paneli 🩺</div>
+            <div class="dashboard-name">Dr. {{ doctor.user.get_full_name }}</div>
+            <div style="font-size:14px;color:rgba(255,255,255,0.6);margin-top:4px;">
+                {{ doctor.specialty.name }} · {{ doctor.hospital.name }}
+            </div>
+
+            {% if not doctor.is_available %}
+            <div style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);
+                        border-radius:var(--radius);padding:10px 16px;margin-top:16px;
+                        font-size:13px;color:#ef4444;display:flex;align-items:center;
+                        justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                <span>
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Siz hozir <strong>mavjud emas</strong> deb belgilangansiz.
+                    Sabab: {{ doctor.unavailable_reason|default:"Ko'rsatilmagan" }}
+                </span>
+                <button onclick="setAvailable()"
+                        style="background:white;color:#ef4444;border:1px solid #ef4444;
+                               padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;
+                               cursor:pointer;white-space:nowrap;">
+                    <i class="fas fa-check"></i> Mavjudman deb belgilash
+                </button>
+            </div>
+            {% else %}
+            <div style="margin-top:16px;">
+                <button onclick="openUnavailableModal()"
+                        style="background:rgba(255,255,255,0.1);color:white;border:1px solid rgba(255,255,255,0.25);
+                               padding:8px 16px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;">
+                    <i class="fas fa-pause-circle"></i> Vaqtincha band deb belgilash
+                </button>
+            </div>
+            {% endif %}
+
+            <div class="dashboard-quick-stats" style="margin-top:20px;">
+                <div class="quick-stat">
+                    <div class="quick-stat-icon" style="background:rgba(14,165,233,0.15);color:var(--primary);">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <div class="quick-stat-info">
+                        <div class="quick-stat-number">{{ today_appointments.count }}</div>
+                        <div class="quick-stat-label">Bugun</div>
+                    </div>
+                </div>
+                <div class="quick-stat">
+                    <div class="quick-stat-icon" style="background:rgba(16,185,129,0.15);color:var(--accent);">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <div class="quick-stat-info">
+                        <div class="quick-stat-number">{{ upcoming_appointments.count }}</div>
+                        <div class="quick-stat-label">Kelgusi</div>
+                    </div>
+                </div>
+                <div class="quick-stat">
+                    <div class="quick-stat-icon" style="background:rgba(245,158,11,0.15);color:var(--warning);">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div class="quick-stat-info">
+                        <div class="quick-stat-number">{{ doctor.rating }}</div>
+                        <div class="quick-stat-label">Reyting</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-content">
+
+        <!-- MAIN -->
+        <div class="dashboard-main">
+
+            <!-- Bugungi navbatlar -->
+            <div class="section-card">
+                <div class="section-card-header">
+                    <div class="section-card-title">
+                        <i class="fas fa-calendar-day"></i>
+                        Bugungi navbatlar
+                        <span style="background:var(--primary);color:white;border-radius:20px;
+                                     padding:2px 10px;font-size:12px;margin-left:8px;">
+                            {{ today }}
+                        </span>
+                    </div>
+                </div>
+                <div class="section-card-body">
+
+                    {% for appt in today_appointments %}
+                    <div class="appointment-card" id="appt-{{ appt.pk }}">
+                        <div class="appointment-date">
+                            <div class="appointment-day" style="font-size:18px;">
+                                {{ appt.appointment_time|time:"H:i" }}
+                            </div>
+                            <div class="appointment-month">soat</div>
+                        </div>
+
+                        <div class="appointment-info">
+                            <div class="appointment-doctor">{{ appt.patient.get_full_name }}</div>
+                            <div class="appointment-clinic">
+                                <i class="fas fa-phone" style="font-size:11px;"></i>
+                                {{ appt.patient.phone|default:"Tel yo'q" }}
+                            </div>
+                            {% if appt.reason %}
+                            <div class="appointment-meta">
+                                <span class="appointment-meta-item">
+                                    <i class="fas fa-notes-medical"></i>
+                                    {{ appt.reason|truncatechars:40 }}
+                                </span>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Amallar -->
+                        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+                            {% if appt.status == 'pending' %}
+                                <span style="background:rgba(245,158,11,0.1);color:#f59e0b;
+                                             padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">
+                                    Kutilmoqda
+                                </span>
+                            {% elif appt.status == 'confirmed' %}
+                                <span style="background:rgba(14,165,233,0.1);color:#0ea5e9;
+                                             padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">
+                                    Tasdiqlangan
+                                </span>
+                            {% endif %}
+
+                            <div style="display:flex;gap:6px;">
+                                <!-- Tugallandi -->
+                                <button onclick="openCompleteModal({{ appt.pk }})"
+                                        title="Tugallandi"
+                                        style="background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.3);
+                                               padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer;">
+                                    <i class="fas fa-check"></i> Tugadi
+                                </button>
+                                <!-- Kelmadi -->
+                                <button onclick="markNoShow({{ appt.pk }})"
+                                        title="Kelmadi"
+                                        style="background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.3);
+                                               padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer;">
+                                    <i class="fas fa-user-times"></i> Kelmadi
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div style="text-align:center;padding:40px;color:var(--gray);">
+                        <i class="fas fa-calendar-check" style="font-size:36px;display:block;margin-bottom:12px;opacity:0.3;"></i>
+                        Bugun navbat yo'q
+                    </div>
+                    {% endfor %}
+
+                </div>
+            </div>
+
+            <!-- Kelgusi navbatlar -->
+            {% if upcoming_appointments %}
+            <div class="section-card">
+                <div class="section-card-header">
+                    <div class="section-card-title">
+                        <i class="fas fa-calendar-alt"></i> Kelgusi navbatlar
+                    </div>
+                </div>
+                <div class="section-card-body">
+                    {% for appt in upcoming_appointments %}
+                    <div class="appointment-card">
+                        <div class="appointment-date">
+                            <div class="appointment-day">{{ appt.appointment_date|date:"d" }}</div>
+                            <div class="appointment-month">{{ appt.appointment_date|date:"M" }}</div>
+                        </div>
+                        <div class="appointment-info">
+                            <div class="appointment-doctor">{{ appt.patient.get_full_name }}</div>
+                            <div class="appointment-meta">
+                                <span class="appointment-meta-item">
+                                    <i class="fas fa-clock"></i> {{ appt.appointment_time|time:"H:i" }}
+                                </span>
+                                <span class="appointment-meta-item">
+                                    <i class="fas fa-phone"></i> {{ appt.patient.phone|default:"—" }}
+                                </span>
+                            </div>
+                        </div>
+                        {% if appt.status == 'confirmed' %}
+                            <span style="background:rgba(14,165,233,0.1);color:#0ea5e9;
+                                         padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">
+                                Tasdiqlangan
+                            </span>
+                        {% else %}
+                            <span style="background:rgba(245,158,11,0.1);color:#f59e0b;
+                                         padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">
+                                Kutilmoqda
+                            </span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- SIDEBAR -->
+        <div class="dashboard-sidebar">
+
+            <!-- Profil -->
+            <div class="section-card">
+                <div class="section-card-header">
+                    <div class="section-card-title"><i class="fas fa-user-md"></i> Profilim</div>
+                </div>
+                <div class="section-card-body">
+                    <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
+                        {% if doctor.user.avatar %}
+                            <img src="{{ doctor.user.avatar.url }}" alt="Avatar"
+                                 style="width:56px;height:56px;border-radius:50%;object-fit:cover;">
+                        {% else %}
+                            <div style="width:56px;height:56px;background:var(--gradient-1);border-radius:50%;
+                                        display:flex;align-items:center;justify-content:center;
+                                        color:white;font-size:22px;font-weight:700;">
+                                {{ doctor.user.first_name|first|upper }}{{ doctor.user.last_name|first|upper }}
+                            </div>
+                        {% endif %}
+                        <div>
+                            <div style="font-weight:700;color:var(--dark);">Dr. {{ doctor.user.get_full_name }}</div>
+                            <div style="font-size:13px;color:var(--gray);">{{ doctor.specialty.name }}</div>
+                        </div>
+                    </div>
+
+                    <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
+                        <div style="display:flex;justify-content:space-between;color:var(--gray);">
+                            <span>Shifohona:</span>
+                            <span style="color:var(--dark);font-weight:500;">{{ doctor.hospital.name }}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;color:var(--gray);">
+                            <span>Tajriba:</span>
+                            <span style="color:var(--dark);font-weight:500;">{{ doctor.experience_years }} yil</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;color:var(--gray);">
+                            <span>Qabul narxi:</span>
+                            <span style="color:var(--primary);font-weight:600;">
+                                {{ doctor.consultation_fee|floatformat:0 }} so'm
+                            </span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;color:var(--gray);">
+                            <span>Reyting:</span>
+                            <span style="color:#f59e0b;font-weight:600;">
+                                ⭐ {{ doctor.rating }} / 5.0
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ish grafigi -->
+            <div class="section-card">
+                <div class="section-card-header">
+                    <div class="section-card-title"><i class="fas fa-clock"></i> Ish grafigi</div>
+                </div>
+                <div class="section-card-body" style="padding:12px 16px;">
+                    {% for row in schedule_rows %}
+                    {% if row.schedule and row.schedule.is_active %}
+                    <div style="display:flex;justify-content:space-between;align-items:center;
+                                padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+                        <span style="color:var(--dark);font-weight:500;">{{ row.name }}</span>
+                        <span style="color:var(--primary);">
+                            {{ row.schedule.start_time|time:"H:i" }} – {{ row.schedule.end_time|time:"H:i" }}
+                        </span>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                    {% if not has_active_schedule %}
+                    <div style="text-align:center;color:var(--gray);font-size:13px;padding:16px 0 4px;">
+                        Ish grafigi belgilanmagan
+                    </div>
+                    {% endif %}
+                    <button onclick="openScheduleModal()"
+                            style="width:100%;margin-top:12px;padding:9px;border:1px dashed var(--primary);
+                                   border-radius:var(--radius);background:none;color:var(--primary);
+                                   font-size:13px;font-weight:600;cursor:pointer;">
+                        <i class="fas fa-cog"></i> Grafikni boshqarish
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Ish grafigini boshqarish modali -->
+<div id="scheduleModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);
+                                z-index:1000;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:var(--card);border-radius:var(--radius-lg);padding:24px;width:520px;
+                max-width:95vw;max-height:85vh;overflow-y:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="color:var(--dark);margin:0;">
+                <i class="fas fa-clock" style="color:var(--primary);"></i> Ish grafigini boshqarish
+            </h3>
+            <button onclick="closeScheduleModal()"
+                    style="background:none;border:none;font-size:22px;line-height:1;color:var(--gray);cursor:pointer;">&times;</button>
+        </div>
+        <p style="font-size:13px;color:var(--gray);margin-bottom:16px;">
+            Har bir ish kuni uchun boshlanish/tugash vaqtini va bitta qabul necha daqiqa
+            davom etishini belgilang. Ish kuni bo'lmasa, "Ish kuni" belgisini o'chirib qo'ying.
+        </p>
+
+        <div id="scheduleRows">
+            {% for row in schedule_rows %}
+            <div class="schedule-row" data-weekday="{{ row.num }}"
+                 style="border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <strong style="color:var(--dark);font-size:14px;">{{ row.name }}</strong>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray);cursor:pointer;">
+                        <input type="checkbox" class="day-toggle" data-weekday="{{ row.num }}"
+                               {% if row.schedule.is_active %}checked{% endif %}
+                               onchange="toggleDayForm({{ row.num }})">
+                        Ish kuni
+                    </label>
+                </div>
+                <div class="day-form" id="dayForm{{ row.num }}"
+                     style="display:{% if row.schedule.is_active %}grid{% else %}none{% endif %};
+                            grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;">
+                    <div>
+                        <label style="font-size:11px;color:var(--gray);">Boshlanish</label>
+                        <input type="time" class="sched-start"
+                               value="{{ row.schedule.start_time|time:'H:i'|default:'09:00' }}"
+                               style="width:100%;padding:6px;border:1px solid var(--border);
+                                      border-radius:6px;font-size:13px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:var(--gray);">Tugash</label>
+                        <input type="time" class="sched-end"
+                               value="{{ row.schedule.end_time|time:'H:i'|default:'18:00' }}"
+                               style="width:100%;padding:6px;border:1px solid var(--border);
+                                      border-radius:6px;font-size:13px;box-sizing:border-box;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:var(--gray);">Slot (daqiqa)</label>
+                        <input type="number" class="sched-slot" min="5" step="5"
+                               value="{{ row.schedule.slot_duration|default:20 }}"
+                               style="width:100%;padding:6px;border:1px solid var(--border);
+                                      border-radius:6px;font-size:13px;box-sizing:border-box;">
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div style="display:flex;gap:12px;margin-top:8px;">
+            <button onclick="closeScheduleModal()"
+                    style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius);
+                           background:none;cursor:pointer;color:var(--gray);font-weight:600;">
+                Bekor
+            </button>
+            <button onclick="saveSchedule()"
+                    style="flex:1;padding:10px;border:none;border-radius:var(--radius);
+                           background:var(--primary);color:white;cursor:pointer;font-weight:600;">
+                <i class="fas fa-save"></i> Saqlash
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- "Band deb belgilash" modali -->
+<div id="unavailableModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);
+                                   z-index:1000;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:var(--card);border-radius:var(--radius-lg);padding:24px;width:380px;max-width:90vw;">
+        <h3 style="margin-bottom:12px;color:var(--dark);">
+            <i class="fas fa-pause-circle" style="color:#ef4444;"></i> Vaqtincha band deb belgilash
+        </h3>
+        <p style="font-size:14px;color:var(--gray);margin-bottom:12px;">
+            Sabab (ixtiyoriy) — bemorlar sizni ro'yxatda ko'rmaydi:
+        </p>
+        <textarea id="unavailableReason" rows="2"
+                  style="width:100%;border:1px solid var(--border);border-radius:var(--radius);
+                         padding:10px;font-size:14px;resize:none;background:var(--bg);color:var(--dark);
+                         box-sizing:border-box;"
+                  placeholder="Masalan: ta'tilda, malaka oshirish kursida..."></textarea>
+        <div style="display:flex;gap:12px;margin-top:16px;">
+            <button onclick="closeUnavailableModal()"
+                    style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius);
+                           background:none;cursor:pointer;color:var(--gray);font-weight:600;">
+                Bekor
+            </button>
+            <button onclick="confirmUnavailable()"
+                    style="flex:1;padding:10px;border:none;border-radius:var(--radius);
+                           background:#ef4444;color:white;cursor:pointer;font-weight:600;">
+                <i class="fas fa-check"></i> Tasdiqlash
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Tugallash modali -->
+<div id="completeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);
+                                z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--card);border-radius:var(--radius-lg);padding:24px;width:380px;max-width:90vw;">
+        <h3 style="margin-bottom:12px;color:var(--dark);">
+            <i class="fas fa-check-circle" style="color:#10b981;"></i> Qabul yakunlandi
+        </h3>
+        <p style="font-size:14px;color:var(--gray);margin-bottom:12px;">Xulosa yoki izoh yozing (ixtiyoriy):</p>
+        <textarea id="doctorNotes" rows="3"
+                  style="width:100%;border:1px solid var(--border);border-radius:var(--radius);
+                         padding:10px;font-size:14px;resize:none;background:var(--bg);color:var(--dark);"
+                  placeholder="Tashxis, dori-darmon, keyingi tashrif..."></textarea>
+        <div style="display:flex;gap:12px;margin-top:16px;">
+            <button onclick="closeCompleteModal()"
+                    style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius);
+                           background:none;cursor:pointer;color:var(--gray);font-weight:600;">
+                Bekor
+            </button>
+            <button onclick="confirmComplete()"
+                    style="flex:1;padding:10px;border:none;border-radius:var(--radius);
+                           background:#10b981;color:white;cursor:pointer;font-weight:600;">
+                <i class="fas fa-check"></i> Tasdiqlash
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let completeId = null;
+
+function openCompleteModal(id) {
+    completeId = id;
+    document.getElementById('completeModal').style.display = 'flex';
+}
+function closeCompleteModal() {
+    completeId = null;
+    document.getElementById('completeModal').style.display = 'none';
+}
+
+async function confirmComplete() {
+    if (!completeId) return;
+    const notes = document.getElementById('doctorNotes').value;
+    const fd = new FormData();
+    fd.append('doctor_notes', notes);
+    fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    const res = await fetch(`/navbat/${completeId}/tugallandi/`, {method:'POST', body:fd});
+    const data = await res.json();
+    if (data.success) { closeCompleteModal(); location.reload(); }
+    else alert(data.message);
+}
+
+async function markNoShow(id) {
+    if (!confirm("Bemor kelmadi deb belgilaysizmi? Bu vaqt boshqa bemor uchun bo'shaydi.")) return;
+    const fd = new FormData();
+    fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    const res = await fetch(`/navbat/${id}/kelmadi/`, {method:'POST', body:fd});
+    const data = await res.json();
+    if (data.success) {
+        document.getElementById(`appt-${id}`).remove();
+        alert(data.message);
+    } else alert(data.message);
+}
+
+// ===== ISH GRAFIGI =====
+function openScheduleModal() {
+    document.getElementById('scheduleModal').style.display = 'flex';
+}
+function closeScheduleModal() {
+    document.getElementById('scheduleModal').style.display = 'none';
+}
+function toggleDayForm(weekday) {
+    const checkbox = document.querySelector(`.day-toggle[data-weekday="${weekday}"]`);
+    const form = document.getElementById(`dayForm${weekday}`);
+    form.style.display = checkbox.checked ? 'grid' : 'none';
+}
+
+async function saveSchedule() {
+    const rows = document.querySelectorAll('.schedule-row');
+    const days = [];
+    rows.forEach(row => {
+        const weekday = row.dataset.weekday;
+        const isActive = row.querySelector('.day-toggle').checked;
+        days.push({
+            weekday: weekday,
+            is_active: isActive,
+            start_time: row.querySelector('.sched-start').value,
+            end_time: row.querySelector('.sched-end').value,
+            slot_duration: row.querySelector('.sched-slot').value,
+        });
+    });
+
+    try {
+        const res = await fetch("{% url 'save_schedule' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify({days: days}),
+        });
+        const data = await res.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || "Xatolik yuz berdi");
+        }
+    } catch (e) {
+        alert("Server bilan bog'lanishda xatolik yuz berdi");
+    }
+}
+
+// ===== MAVJUDLIK HOLATI =====
+function openUnavailableModal() {
+    document.getElementById('unavailableModal').style.display = 'flex';
+}
+function closeUnavailableModal() {
+    document.getElementById('unavailableModal').style.display = 'none';
+}
+
+async function toggleAvailability(reason) {
+    const fd = new FormData();
+    fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    if (reason) fd.append('reason', reason);
+    const res = await fetch("{% url 'toggle_availability' %}", {method: 'POST', body: fd});
+    const data = await res.json();
+    if (data.success) {
+        location.reload();
+    } else {
+        alert(data.message || "Xatolik yuz berdi");
+    }
+}
+
+function confirmUnavailable() {
+    const reason = document.getElementById('unavailableReason').value;
+    toggleAvailability(reason);
+}
+
+function setAvailable() {
+    toggleAvailability('');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends 'components/base.html' %}
+{% load static %}
+
+{% block title %}Bildirishnomalar — MedQueue{% endblock %}
+
+{% block main %}
+<div class="dashboard">
+
+    <div class="dashboard-header">
+        <div class="dashboard-header-content">
+            <div class="dashboard-greeting">Bildirishnomalar 🔔</div>
+            <div class="dashboard-name">Barcha xabarlaringiz shu yerda</div>
+        </div>
+    </div>
+
+    <div class="dashboard-content" style="display:block;max-width:720px;">
+        <div class="section-card">
+            <div class="section-card-header">
+                <div class="section-card-title"><i class="fas fa-bell"></i> Bildirishnomalar</div>
+                {% if unread_count %}
+                <a class="section-card-action" onclick="markAllRead()" style="cursor:pointer;">
+                    Barchasini o'qildi deb belgilash
+                </a>
+                {% endif %}
+            </div>
+            <div class="section-card-body" style="padding:8px 24px;">
+
+                {% for notif in notifications %}
+                <div class="notification-item {% if not notif.is_read %}unread{% endif %}"
+                     id="notif-{{ notif.pk }}"
+                     onclick="markRead({{ notif.pk }})"
+                     style="cursor:pointer;{% if not notif.is_read %}background:rgba(14,165,233,0.04);{% endif %}">
+                    <div class="notification-icon
+                        {% if notif.type == 'reminder' %}notif-reminder
+                        {% elif notif.type == 'confirmed' or notif.type == 'completed' %}notif-success
+                        {% elif notif.type == 'cancelled' or notif.type == 'no_show' %}notif-danger
+                        {% else %}notif-info{% endif %}">
+                        {% if notif.type == 'reminder' %}<i class="fas fa-bell"></i>
+                        {% elif notif.type == 'confirmed' %}<i class="fas fa-check"></i>
+                        {% elif notif.type == 'completed' %}<i class="fas fa-check-double"></i>
+                        {% elif notif.type == 'cancelled' %}<i class="fas fa-times"></i>
+                        {% elif notif.type == 'no_show' %}<i class="fas fa-user-times"></i>
+                        {% elif notif.type == 'new_application' %}<i class="fas fa-user-md"></i>
+                        {% else %}<i class="fas fa-info"></i>{% endif %}
+                    </div>
+                    <div class="notification-text" style="flex:1;">
+                        <div class="notification-title">{{ notif.get_type_display }}</div>
+                        <div class="notification-desc">{{ notif.message }}</div>
+
+                        {% if notif.type == 'new_application' and request.user.role == 'hospital' %}
+                        <a href="{% url 'hospital_doctors' %}"
+                           style="display:inline-block;margin-top:6px;font-size:12px;color:var(--primary);
+                                  font-weight:600;text-decoration:none;"
+                           onclick="event.stopPropagation();">
+                            Ko'rib chiqish <i class="fas fa-arrow-right" style="font-size:10px;"></i>
+                        </a>
+                        {% elif notif.appointment %}
+                        <a href="{% url 'appointment_detail' notif.appointment.pk %}"
+                           style="display:inline-block;margin-top:6px;font-size:12px;color:var(--primary);
+                                  font-weight:600;text-decoration:none;"
+                           onclick="event.stopPropagation();">
+                            Navbatni ko'rish <i class="fas fa-arrow-right" style="font-size:10px;"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                    <div class="notification-time" style="white-space:nowrap;">
+                        {{ notif.created_at|timesince }} oldin
+                    </div>
+                </div>
+                {% empty %}
+                <div style="text-align:center;padding:48px 0;color:var(--gray);">
+                    <i class="fas fa-bell-slash" style="font-size:36px;display:block;margin-bottom:12px;opacity:0.3;"></i>
+                    Hozircha bildirishnoma yo'q
+                </div>
+                {% endfor %}
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function markRead(id) {
+    await fetch(`/bildirishnoma/${id}/oqildi/`);
+    const el = document.getElementById(`notif-${id}`);
+    if (el) { el.classList.remove('unread'); el.style.background = 'none'; }
+}
+
+async function markAllRead() {
+    await fetch('/bildirishnomalar/barchasi-oqildi/');
+    location.reload();
+}
+</script>
+{% endblock %}

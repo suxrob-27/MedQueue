@@ -1,0 +1,438 @@
+{% extends 'components/base.html' %}
+{% load static %}
+
+{% block title %}Ro'yxatdan o'tish — MedQueue{% endblock %}
+
+{% block main %}
+<div style="min-height:80vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;">
+    <div class="modal" style="position:static;width:100%;max-width:520px;transform:none;animation:none;">
+
+        <div class="modal-header">
+            <div>
+                <div class="modal-title">Hisob yaratish 🎉</div>
+                <div class="modal-subtitle">Ro'lni tanlang va ro'yxatdan o'ting</div>
+            </div>
+        </div>
+
+        <div class="modal-body">
+
+            {% if error %}
+            <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);
+                        border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;
+                        color:#ef4444;font-size:14px;display:flex;align-items:center;gap:8px;">
+                <i class="fas fa-exclamation-circle"></i> {{ error }}
+            </div>
+            {% endif %}
+
+            {% if success %}
+            <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);
+                        border-radius:var(--radius);padding:14px 16px;margin-bottom:16px;
+                        color:#10b981;font-size:14px;">
+                <i class="fas fa-check-circle"></i> {{ success }}
+            </div>
+            {% endif %}
+
+            <!-- ROL TANLASH -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;">
+                <div class="role-card" id="rolePatient" onclick="selectRole('patient')"
+                     style="border:2px solid var(--primary);background:rgba(14,165,233,0.06);
+                            border-radius:var(--radius);padding:16px;text-align:center;
+                            cursor:pointer;transition:all 0.3s;">
+                    <div style="font-size:28px;margin-bottom:8px;">🧑‍💼</div>
+                    <div style="font-weight:700;color:var(--dark);font-size:14px;">Bemor</div>
+                    <div style="font-size:12px;color:var(--gray);margin-top:4px;">
+                        Navbat olish uchun
+                    </div>
+                </div>
+                <div class="role-card" id="roleDoctor" onclick="selectRole('doctor')"
+                     style="border:2px solid var(--border);background:var(--bg);
+                            border-radius:var(--radius);padding:16px;text-align:center;
+                            cursor:pointer;transition:all 0.3s;">
+                    <div style="font-size:28px;margin-bottom:8px;">🩺</div>
+                    <div style="font-weight:700;color:var(--dark);font-size:14px;">Shifokor</div>
+                    <div style="font-size:12px;color:var(--gray);margin-top:4px;">
+                        Shifohona tasdiqidan keyin
+                    </div>
+                </div>
+            </div>
+
+            <form method="POST" action="{% url 'register' %}">
+                {% csrf_token %}
+                <input type="hidden" name="role" id="roleInput" value="patient">
+
+                <!-- UMUMIY MAYDONLAR -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="form-group">
+                        <label class="form-label">Ism</label>
+                        <div class="form-input-wrap">
+                            <i class="fas fa-user form-input-icon"></i>
+                            <input type="text" name="first_name" class="form-input"
+                                   placeholder="Ismingiz" required
+                                   value="{{ request.POST.first_name|default:'' }}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Familiya</label>
+                        <div class="form-input-wrap">
+                            <i class="fas fa-user form-input-icon"></i>
+                            <input type="text" name="last_name" class="form-input"
+                                   placeholder="Familiyangiz" required
+                                   value="{{ request.POST.last_name|default:'' }}">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <div class="form-input-wrap">
+                        <i class="fas fa-at form-input-icon"></i>
+                        <input type="text" name="username" class="form-input"
+                               placeholder="username (lotin harflarda)" required
+                               value="{{ request.POST.username|default:'' }}">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Telefon raqam</label>
+                    <div class="form-input-wrap">
+                        <i class="fas fa-phone form-input-icon"></i>
+                        <input type="tel" name="phone" class="form-input"
+                               placeholder="+998 90 000 00 00"
+                               value="{{ request.POST.phone|default:'' }}">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        Email
+                        <span style="color:var(--gray);font-weight:400;">(ixtiyoriy)</span>
+                    </label>
+                    <div class="form-input-wrap">
+                        <i class="fas fa-envelope form-input-icon"></i>
+                        <input type="email" name="email" class="form-input"
+                               placeholder="email@gmail.com"
+                               value="{{ request.POST.email|default:'' }}">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Parol</label>
+                    <div class="form-input-wrap">
+                        <i class="fas fa-lock form-input-icon"></i>
+                        <input type="password" name="password" id="regPassword"
+                               class="form-input" placeholder="Kamida 8 ta belgi" required>
+                        <i class="fas fa-eye form-input-right"
+                           onclick="togglePassword('regPassword', this)"
+                           style="cursor:pointer;"></i>
+                    </div>
+                </div>
+
+                <!-- SHIFOKOR QISMI — faqat shifokor tanlanganda ko'rinadi -->
+                <div id="doctorSection" style="display:none;">
+                    <div style="border-top:1px solid var(--border);margin:20px 0 16px;
+                                padding-top:16px;">
+                        <div style="font-size:13px;font-weight:700;color:var(--dark);
+                                    margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+                            <i class="fas fa-hospital" style="color:var(--primary);"></i>
+                            Shifohona ma'lumotlari
+                        </div>
+
+                        <!-- Shifohona tanlash -->
+                        <div class="form-group">
+                            <label class="form-label">Qaysi shifohonada ishlaysiz?</label>
+                            <div style="display:flex;gap:8px;margin-bottom:8px;">
+                                <div class="form-input-wrap" style="flex:1;">
+                                    <i class="fas fa-search form-input-icon"></i>
+                                    <input type="text" id="hospitalSearch" class="form-input"
+                                           placeholder="Shifohona nomini yozing..."
+                                           oninput="filterHospitals(this.value)"
+                                           autocomplete="off">
+                                </div>
+                            </div>
+
+                            <!-- Shifohonalar ro'yxati -->
+                            <div id="hospitalList"
+                                 style="border:1px solid var(--border);border-radius:var(--radius);
+                                        max-height:200px;overflow-y:auto;display:none;">
+                                {% for hospital in hospitals %}
+                                <div class="hospital-option"
+                                     data-id="{{ hospital.pk }}"
+                                     data-name="{{ hospital.name }}"
+                                     onclick="selectHospital({{ hospital.pk }}, '{{ hospital.name }}', '{{ hospital.district.region.name|default:'' }}')"
+                                     style="padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border);
+                                            display:flex;align-items:center;justify-content:space-between;
+                                            transition:background 0.2s;font-size:13px;">
+                                    <div>
+                                        <div style="font-weight:600;color:var(--dark);">
+                                            {{ hospital.name }}
+                                        </div>
+                                        <div style="font-size:11px;color:var(--gray);margin-top:2px;">
+                                            {{ hospital.district.region.name|default:"" }} · {{ hospital.get_type_display }}
+                                        </div>
+                                    </div>
+                                    <i class="fas fa-check hospital-check"
+                                       style="color:var(--primary);display:none;"></i>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Tanlangan shifohona -->
+                            <div id="selectedHospital" style="display:none;
+                                 background:rgba(14,165,233,0.08);border:1px solid rgba(14,165,233,0.2);
+                                 border-radius:var(--radius);padding:12px 16px;margin-top:8px;">
+                                <div style="display:flex;align-items:center;justify-content:space-between;">
+                                    <div style="display:flex;align-items:center;gap:10px;">
+                                        <div style="width:32px;height:32px;background:var(--primary);
+                                                    border-radius:8px;display:flex;align-items:center;
+                                                    justify-content:center;color:white;font-size:14px;">
+                                            🏥
+                                        </div>
+                                        <div>
+                                            <div id="selectedHospitalName"
+                                                 style="font-weight:700;font-size:13px;color:var(--dark);"></div>
+                                            <div id="selectedHospitalRegion"
+                                                 style="font-size:11px;color:var(--gray);"></div>
+                                        </div>
+                                    </div>
+                                    <button type="button" onclick="clearHospital()"
+                                            style="background:none;border:none;color:var(--gray);
+                                                   cursor:pointer;font-size:16px;">✕</button>
+                                </div>
+                            </div>
+                            <input type="hidden" name="hospital_id" id="hospitalIdInput">
+                        </div>
+
+                        <!-- Mutaxassislik (shifohona tanlanganida chiqadi) -->
+                        <div class="form-group" id="specialtySection" style="display:none;">
+                            <label class="form-label">
+                                Mutaxassislik
+                                <span style="font-size:11px;color:var(--primary);font-weight:400;">
+                                    (shifohona tasdiqlasa avtomatik belgilanadi)
+                                </span>
+                            </label>
+                            <div class="form-input-wrap">
+                                <i class="fas fa-stethoscope form-input-icon"></i>
+                                <select name="specialty_id" id="specialtySelect" class="form-input">
+                                    <option value="">Mutaxassislikni tanlang</option>
+                                    {% for spec in specialties %}
+                                    <option value="{{ spec.pk }}">
+                                        {{ spec.icon|default:"🏥" }} {{ spec.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Tajriba -->
+                        <div class="form-group">
+                            <label class="form-label">Ish tajribasi (yil)</label>
+                            <div class="form-input-wrap">
+                                <i class="fas fa-briefcase form-input-icon"></i>
+                                <input type="number" name="experience_years" class="form-input"
+                                       placeholder="Masalan: 5" min="0" max="60"
+                                       value="{{ request.POST.experience_years|default:'' }}">
+                            </div>
+                        </div>
+
+                        <!-- Ta'lim -->
+                        <div class="form-group">
+                            <label class="form-label">Oliy ta'lim muassasasi</label>
+                            <div class="form-input-wrap">
+                                <i class="fas fa-graduation-cap form-input-icon"></i>
+                                <input type="text" name="education" class="form-input"
+                                       placeholder="Masalan: ToshDTI, 2010"
+                                       value="{{ request.POST.education|default:'' }}">
+                            </div>
+                        </div>
+
+                        <!-- Eslatma -->
+                        <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);
+                                    border-radius:var(--radius);padding:12px 14px;font-size:12px;
+                                    color:#92400e;display:flex;gap:8px;">
+                            <i class="fas fa-info-circle" style="color:#f59e0b;margin-top:1px;flex-shrink:0;"></i>
+                            <span>
+                                So'rovingiz shifohona administratoriga yuboriladi.
+                                Tasdiqlangandan keyin hisobingiz faollashadi va
+                                mutaxassislik avtomatik belgilanadi.
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SHARTLAR -->
+                <div style="display:flex;align-items:flex-start;gap:10px;margin:16px 0;">
+                    <input type="checkbox" id="agreeTerms" required
+                           style="margin-top:3px;accent-color:var(--primary);">
+                    <label for="agreeTerms" style="font-size:13px;color:var(--gray);cursor:pointer;">
+                        <a href="#" style="color:var(--primary);font-weight:600;text-decoration:none;">
+                            Foydalanish shartlari
+                        </a> va
+                        <a href="#" style="color:var(--primary);font-weight:600;text-decoration:none;">
+                            Maxfiylik siyosati
+                        </a>ga roziman
+                    </label>
+                </div>
+
+                <button type="submit" class="btn-form-submit ripple" id="submitBtn">
+                    <i class="fas fa-user-plus" id="submitIcon"></i>
+                    <span id="submitText">Ro'yxatdan o'tish</span>
+                </button>
+            </form>
+
+            <div style="text-align:center;margin-top:16px;">
+                <p style="font-size:13px;color:var(--gray);">
+                    Allaqachon hisob bormi?
+                    <a href="{% url 'login' %}"
+                       style="color:var(--primary);font-weight:600;text-decoration:none;">
+                        Kirish
+                    </a>
+                </p>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentRole = 'patient';
+let selectedHospitalId = null;
+
+// ===== ROL TANLASH =====
+function selectRole(role) {
+    currentRole = role;
+    document.getElementById('roleInput').value = role;
+
+    const patientCard = document.getElementById('rolePatient');
+    const doctorCard  = document.getElementById('roleDoctor');
+    const doctorSection = document.getElementById('doctorSection');
+    const submitIcon = document.getElementById('submitIcon');
+    const submitText = document.getElementById('submitText');
+
+    if (role === 'doctor') {
+        // Shifokor kartasi aktiv
+        doctorCard.style.border  = '2px solid var(--primary)';
+        doctorCard.style.background = 'rgba(14,165,233,0.06)';
+        // Bemor kartasi passiv
+        patientCard.style.border = '2px solid var(--border)';
+        patientCard.style.background = 'var(--bg)';
+        // Shifokor qismini ko'rsat
+        doctorSection.style.display = 'block';
+        submitIcon.className = 'fas fa-stethoscope';
+        submitText.textContent = "So'rov yuborish";
+    } else {
+        // Bemor kartasi aktiv
+        patientCard.style.border  = '2px solid var(--primary)';
+        patientCard.style.background = 'rgba(14,165,233,0.06)';
+        // Shifokor kartasi passiv
+        doctorCard.style.border  = '2px solid var(--border)';
+        doctorCard.style.background = 'var(--bg)';
+        // Shifokor qismini yashir
+        doctorSection.style.display = 'none';
+        submitIcon.className = 'fas fa-user-plus';
+        submitText.textContent = "Ro'yxatdan o'tish";
+    }
+}
+
+// ===== SHIFOHONA QIDIRISH =====
+function filterHospitals(query) {
+    const list = document.getElementById('hospitalList');
+    const options = list.querySelectorAll('.hospital-option');
+
+    list.style.display = 'block';
+
+    let visibleCount = 0;
+    options.forEach(opt => {
+        const name = opt.dataset.name.toLowerCase();
+        if (!query || name.includes(query.toLowerCase())) {
+            opt.style.display = 'flex';
+            visibleCount++;
+        } else {
+            opt.style.display = 'none';
+        }
+    });
+
+    if (visibleCount === 0) {
+        list.style.display = 'none';
+    }
+}
+
+// Input ga focus bo'lsa ro'yxatni ko'rsat
+document.getElementById('hospitalSearch').addEventListener('focus', function() {
+    if (!selectedHospitalId) {
+        filterHospitals(this.value);
+    }
+});
+
+// Tashqarini bossangiz ro'yxat yopiladi
+document.addEventListener('click', function(e) {
+    const search = document.getElementById('hospitalSearch');
+    const list   = document.getElementById('hospitalList');
+    if (!search.contains(e.target) && !list.contains(e.target)) {
+        list.style.display = 'none';
+    }
+});
+
+// ===== SHIFOHONA TANLASH =====
+function selectHospital(id, name, region) {
+    selectedHospitalId = id;
+
+    // Hidden input
+    document.getElementById('hospitalIdInput').value = id;
+
+    // Tanlangan shifohona bloki
+    document.getElementById('selectedHospitalName').textContent = name;
+    document.getElementById('selectedHospitalRegion').textContent = region;
+    document.getElementById('selectedHospital').style.display = 'block';
+
+    // Search inputni yashir
+    document.getElementById('hospitalSearch').style.display = 'none';
+
+    // Ro'yxatni yop
+    document.getElementById('hospitalList').style.display = 'none';
+
+    // Checkmark ko'rsat
+    document.querySelectorAll('.hospital-option').forEach(opt => {
+        const check = opt.querySelector('.hospital-check');
+        if (parseInt(opt.dataset.id) === id) {
+            opt.style.background = 'rgba(14,165,233,0.06)';
+            check.style.display = 'block';
+        } else {
+            opt.style.background = '';
+            check.style.display = 'none';
+        }
+    });
+
+    // Mutaxassislik bo'limini ko'rsat
+    document.getElementById('specialtySection').style.display = 'block';
+}
+
+// ===== SHIFOHONA TOZALASH =====
+function clearHospital() {
+    selectedHospitalId = null;
+    document.getElementById('hospitalIdInput').value = '';
+    document.getElementById('selectedHospital').style.display = 'none';
+    document.getElementById('hospitalSearch').style.display = 'block';
+    document.getElementById('hospitalSearch').value = '';
+    document.getElementById('specialtySection').style.display = 'none';
+
+    document.querySelectorAll('.hospital-option').forEach(opt => {
+        opt.style.background = '';
+        opt.querySelector('.hospital-check').style.display = 'none';
+    });
+}
+
+// ===== PASSWORD =====
+function togglePassword(id, icon) {
+    const input = document.getElementById(id);
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+    }
+}
+</script>
+{% endblock %}

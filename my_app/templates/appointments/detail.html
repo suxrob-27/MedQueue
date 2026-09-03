@@ -1,0 +1,138 @@
+{% extends 'components/base.html' %}
+{% load static %}
+
+{% block title %}Navbat #{{ appointment.pk }} — MedQueue{% endblock %}
+
+{% block main %}
+<div style="max-width:600px;margin:0 auto;padding:40px 20px;">
+
+    <a href="{% url 'my_appointments' %}"
+       style="color:var(--gray);text-decoration:none;font-size:14px;
+              display:inline-flex;align-items:center;gap:6px;margin-bottom:24px;">
+        <i class="fas fa-arrow-left"></i> Navbatlarimga qaytish
+    </a>
+
+    <div style="background:var(--card);border-radius:var(--radius-lg);overflow:hidden;
+                border:1px solid var(--border);">
+
+        <!-- STATUS BANNER -->
+        <div style="padding:20px 24px;
+            {% if appointment.status == 'confirmed' %}background:rgba(14,165,233,0.08);border-bottom:1px solid rgba(14,165,233,0.2);
+            {% elif appointment.status == 'pending' %}background:rgba(245,158,11,0.08);border-bottom:1px solid rgba(245,158,11,0.2);
+            {% elif appointment.status == 'completed' %}background:rgba(16,185,129,0.08);border-bottom:1px solid rgba(16,185,129,0.2);
+            {% else %}background:rgba(239,68,68,0.08);border-bottom:1px solid rgba(239,68,68,0.2);{% endif %}
+            display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <div style="font-size:13px;color:var(--gray);">Navbat #{{ appointment.pk }}</div>
+                <div style="font-size:20px;font-weight:800;margin-top:2px;
+                    {% if appointment.status == 'confirmed' %}color:#0ea5e9;
+                    {% elif appointment.status == 'pending' %}color:#f59e0b;
+                    {% elif appointment.status == 'completed' %}color:#10b981;
+                    {% else %}color:#ef4444;{% endif %}">
+                    {% if appointment.status == 'confirmed' %}✅
+                    {% elif appointment.status == 'pending' %}⏳
+                    {% elif appointment.status == 'completed' %}🎉
+                    {% elif appointment.status == 'cancelled' %}❌
+                    {% else %}⚠️{% endif %}
+                    {{ appointment.get_status_display }}
+                </div>
+            </div>
+            <div style="text-align:right;font-size:13px;color:var(--gray);">
+                Yaratilgan: {{ appointment.created_at|date:"d.m.Y H:i" }}
+            </div>
+        </div>
+
+        <!-- TAFSILOTLAR -->
+        <div style="padding:24px;">
+
+            {% include 'appointments/_detail_row.html' with icon='fas fa-hospital' label='Shifohona' value=appointment.hospital.name %}
+            {% include 'appointments/_detail_row.html' with icon='fas fa-user-md' label='Shifokor' value=appointment.doctor.user.get_full_name %}
+            {% include 'appointments/_detail_row.html' with icon='fas fa-stethoscope' label='Mutaxassislik' value=appointment.doctor.specialty.name %}
+            {% include 'appointments/_detail_row.html' with icon='fas fa-calendar' label='Sana' value=appointment.appointment_date %}
+            {% include 'appointments/_detail_row.html' with icon='fas fa-clock' label='Vaqt' value=appointment.appointment_time %}
+            {% include 'appointments/_detail_row.html' with icon='fas fa-money-bill' label='Narx' value=appointment.doctor.consultation_fee %}
+
+            {% if appointment.reason %}
+            <div style="margin-top:16px;padding:14px;background:var(--bg);border-radius:var(--radius);">
+                <div style="font-size:12px;color:var(--gray);margin-bottom:4px;">
+                    <i class="fas fa-notes-medical"></i> Murojaat sababi
+                </div>
+                <div style="font-size:14px;color:var(--dark);">{{ appointment.reason }}</div>
+            </div>
+            {% endif %}
+
+            {% if appointment.doctor_notes %}
+            <div style="margin-top:12px;padding:14px;background:rgba(16,185,129,0.08);
+                        border:1px solid rgba(16,185,129,0.2);border-radius:var(--radius);">
+                <div style="font-size:12px;color:#10b981;margin-bottom:4px;">
+                    <i class="fas fa-user-md"></i> Shifokor xulosasi
+                </div>
+                <div style="font-size:14px;color:var(--dark);">{{ appointment.doctor_notes }}</div>
+            </div>
+            {% endif %}
+
+            {% if appointment.cancel_reason %}
+            <div style="margin-top:12px;padding:14px;background:rgba(239,68,68,0.08);
+                        border:1px solid rgba(239,68,68,0.2);border-radius:var(--radius);">
+                <div style="font-size:12px;color:#ef4444;margin-bottom:4px;">
+                    <i class="fas fa-times-circle"></i> Bekor qilish sababi
+                </div>
+                <div style="font-size:14px;color:var(--dark);">{{ appointment.cancel_reason }}</div>
+            </div>
+            {% endif %}
+
+            <!-- AMALLAR -->
+            {% if appointment.status == 'pending' or appointment.status == 'confirmed' %}
+            {% if appointment.patient == user %}
+            <button onclick="openCancel()"
+                    style="width:100%;margin-top:20px;padding:12px;border:1px solid #ef4444;
+                           background:none;color:#ef4444;border-radius:var(--radius);
+                           font-size:14px;font-weight:600;cursor:pointer;">
+                <i class="fas fa-times"></i> Navbatni bekor qilish
+            </button>
+            {% endif %}
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+<!-- Bekor qilish modali -->
+<div id="cancelModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);
+                              z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--card);border-radius:var(--radius-lg);padding:24px;width:360px;max-width:90vw;">
+        <h3 style="margin-bottom:12px;">Navbatni bekor qilish</h3>
+        <textarea id="cancelReason" rows="3"
+                  style="width:100%;border:1px solid var(--border);border-radius:var(--radius);
+                         padding:10px;font-size:14px;resize:none;background:var(--bg);color:var(--dark);"
+                  placeholder="Sabab (ixtiyoriy)"></textarea>
+        <div style="display:flex;gap:12px;margin-top:14px;">
+            <button onclick="document.getElementById('cancelModal').style.display='none'"
+                    style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius);
+                           background:none;cursor:pointer;color:var(--gray);font-weight:600;">Ortga</button>
+            <button onclick="confirmCancel()"
+                    style="flex:1;padding:10px;background:#ef4444;border:none;border-radius:var(--radius);
+                           color:white;cursor:pointer;font-weight:600;">Bekor qilish</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openCancel() {
+    document.getElementById('cancelModal').style.display = 'flex';
+}
+async function confirmCancel() {
+    const reason = document.getElementById('cancelReason').value;
+    const fd = new FormData();
+    fd.append('cancel_reason', reason);
+    fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    const res = await fetch('/navbat/{{ appointment.pk }}/bekor/', {method:'POST', body:fd});
+    const data = await res.json();
+    if (data.success) location.href = "{% url 'my_appointments' %}";
+    else alert(data.message);
+}
+</script>
+{% endblock %}
+

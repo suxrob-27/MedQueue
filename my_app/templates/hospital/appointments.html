@@ -1,0 +1,170 @@
+{% extends 'components/base.html' %}
+{% load static %}
+
+{% block title %}Navbatlar — {{ hospital.name }}{% endblock %}
+
+{% block main %}
+<div class="dashboard">
+    <div class="dashboard-header">
+        <div class="dashboard-header-content">
+            <div class="dashboard-greeting">Navbatlar 📅</div>
+            <div class="dashboard-name">{{ hospital.name }}</div>
+        </div>
+    </div>
+
+    <!-- NAV -->
+    <div style="background:white;border-bottom:1px solid var(--border);padding:0 40px;">
+        <div style="max-width:1200px;margin:0 auto;display:flex;gap:4px;">
+            <a href="{% url 'hospital_dashboard' %}"
+               style="padding:14px 20px;font-size:14px;font-weight:500;color:var(--gray);
+                      border-bottom:2px solid transparent;text-decoration:none;">
+                <i class="fas fa-th-large"></i> Bosh panel
+            </a>
+            <a href="{% url 'hospital_doctors' %}"
+               style="padding:14px 20px;font-size:14px;font-weight:500;color:var(--gray);
+                      border-bottom:2px solid transparent;text-decoration:none;">
+                <i class="fas fa-user-md"></i> Shifokorlar
+            </a>
+            <a href="{% url 'hospital_appointments' %}"
+               style="padding:14px 20px;font-size:14px;font-weight:600;color:var(--primary);
+                      border-bottom:2px solid var(--primary);text-decoration:none;">
+                <i class="fas fa-calendar-alt"></i> Navbatlar
+            </a>
+        </div>
+    </div>
+
+    <div style="max-width:1200px;margin:0 auto;padding:32px 40px;">
+
+        <!-- FILTER -->
+        <form method="GET" style="background:white;border:1px solid var(--border);
+                                   border-radius:var(--radius-lg);padding:20px;margin-bottom:24px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;align-items:end;">
+                <div>
+                    <label style="font-size:13px;font-weight:600;color:var(--dark);display:block;margin-bottom:6px;">
+                        Sana
+                    </label>
+                    <div class="form-input-wrap">
+                        <i class="fas fa-calendar form-input-icon"></i>
+                        <input type="date" name="date" class="form-input" value="{{ selected_date }}">
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size:13px;font-weight:600;color:var(--dark);display:block;margin-bottom:6px;">
+                        Shifokor
+                    </label>
+                    <div class="form-input-wrap">
+                        <i class="fas fa-user-md form-input-icon"></i>
+                        <select name="doctor_id" class="form-input">
+                            <option value="">Barcha shifokorlar</option>
+                            {% for doc in doctors %}
+                            <option value="{{ doc.pk }}"
+                                    {% if selected_doctor == doc.pk|stringformat:"s" %}selected{% endif %}>
+                                Dr. {{ doc.user.get_full_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label style="font-size:13px;font-weight:600;color:var(--dark);display:block;margin-bottom:6px;">
+                        Status
+                    </label>
+                    <div class="form-input-wrap">
+                        <i class="fas fa-filter form-input-icon"></i>
+                        <select name="status" class="form-input">
+                            <option value="">Barcha statuslar</option>
+                            {% for val, label in status_choices %}
+                            <option value="{{ val }}"
+                                    {% if selected_status == val %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="search-btn">
+                    <i class="fas fa-search"></i> Qidirish
+                </button>
+            </div>
+        </form>
+
+        <!-- NATIJA -->
+        <div class="section-card">
+            <div class="section-card-header">
+                <div class="section-card-title">
+                    <i class="fas fa-list"></i>
+                    {{ selected_date|date:"d.m.Y" }} — {{ appointments.count }} ta navbat
+                </div>
+            </div>
+
+            {% if appointments %}
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:var(--bg);border-bottom:2px solid var(--border);">
+                            <th style="padding:12px 20px;text-align:left;font-size:12px;color:var(--gray);font-weight:700;">SOAT</th>
+                            <th style="padding:12px 20px;text-align:left;font-size:12px;color:var(--gray);font-weight:700;">BEMOR</th>
+                            <th style="padding:12px 20px;text-align:left;font-size:12px;color:var(--gray);font-weight:700;">TELEFON</th>
+                            <th style="padding:12px 20px;text-align:left;font-size:12px;color:var(--gray);font-weight:700;">SHIFOKOR</th>
+                            <th style="padding:12px 20px;text-align:left;font-size:12px;color:var(--gray);font-weight:700;">MUTAXASSISLIK</th>
+                            <th style="padding:12px 20px;text-align:left;font-size:12px;color:var(--gray);font-weight:700;">STATUS</th>
+                            <th style="padding:12px 20px;text-align:left;font-size:12px;color:var(--gray);font-weight:700;">SABAB</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for appt in appointments %}
+                        <tr style="border-bottom:1px solid var(--border);
+                                   {% if appt.status == 'cancelled' or appt.status == 'no_show' %}opacity:0.5;{% endif %}">
+                            <td style="padding:14px 20px;">
+                                <span style="background:var(--primary-light);color:var(--primary);
+                                             padding:5px 14px;border-radius:20px;font-weight:800;font-size:15px;">
+                                    {{ appt.appointment_time|time:"H:i" }}
+                                </span>
+                            </td>
+                            <td style="padding:14px 20px;">
+                                <div style="font-weight:700;color:var(--dark);">
+                                    {{ appt.patient.get_full_name }}
+                                </div>
+                            </td>
+                            <td style="padding:14px 20px;font-size:13px;color:var(--gray);">
+                                {{ appt.patient.phone|default:"—" }}
+                            </td>
+                            <td style="padding:14px 20px;">
+                                <div style="font-weight:600;color:var(--dark);font-size:14px;">
+                                    Dr. {{ appt.doctor.user.get_full_name }}
+                                </div>
+                            </td>
+                            <td style="padding:14px 20px;">
+                                <span style="background:var(--primary-light);color:var(--primary);
+                                             padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">
+                                    {{ appt.doctor.specialty.name|default:"—" }}
+                                </span>
+                            </td>
+                            <td style="padding:14px 20px;">
+                                <span style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;
+                                    {% if appt.status == 'pending' %}background:rgba(245,158,11,0.1);color:#f59e0b;
+                                    {% elif appt.status == 'confirmed' %}background:rgba(14,165,233,0.1);color:#0ea5e9;
+                                    {% elif appt.status == 'completed' %}background:rgba(16,185,129,0.1);color:#10b981;
+                                    {% elif appt.status == 'cancelled' %}background:rgba(239,68,68,0.1);color:#ef4444;
+                                    {% else %}background:rgba(107,114,128,0.1);color:#6b7280;{% endif %}">
+                                    {{ appt.get_status_display }}
+                                </span>
+                            </td>
+                            <td style="padding:14px 20px;font-size:13px;color:var(--gray);max-width:200px;">
+                                {{ appt.reason|truncatechars:50|default:"—" }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="text-align:center;padding:60px;color:var(--gray);">
+                <i class="fas fa-calendar" style="font-size:40px;display:block;margin-bottom:12px;opacity:0.3;"></i>
+                Bu kunda navbat topilmadi
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

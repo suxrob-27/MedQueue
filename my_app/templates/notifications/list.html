@@ -1,0 +1,176 @@
+{% extends 'components/base.html' %}
+{% load static %}
+
+{% block title %}Shifohonalar — MedQueue{% endblock %}
+
+{% block main %}
+<div style="max-width:1200px;margin:0 auto;padding:40px 20px;">
+
+    <div style="margin-bottom:32px;">
+        <h1 style="font-size:28px;font-weight:800;color:var(--dark);">
+            <i class="fas fa-hospital" style="color:var(--primary);"></i> Shifohonalar
+        </h1>
+        <p style="color:var(--gray);margin-top:8px;">
+            Barcha aktiv shifohonalar — {{ hospitals.count }} ta topildi
+        </p>
+    </div>
+
+    <!-- FILTER -->
+    <form method="GET" action="{% url 'hospital_list' %}"
+          style="background:var(--card);border-radius:var(--radius-lg);padding:20px;
+                 margin-bottom:32px;border:1px solid var(--border);">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;align-items:end;">
+
+            <div>
+                <label style="font-size:13px;font-weight:600;color:var(--dark);display:block;margin-bottom:6px;">
+                    Viloyat
+                </label>
+                <div class="form-input-wrap">
+                    <i class="fas fa-map-marker-alt form-input-icon"></i>
+                    <select name="region" class="form-input">
+                        <option value="">Barcha viloyatlar</option>
+                        {% for region in regions %}
+                        <option value="{{ region.id }}"
+                                {% if selected_region == region.id|stringformat:"s" %}selected{% endif %}>
+                            {{ region.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label style="font-size:13px;font-weight:600;color:var(--dark);display:block;margin-bottom:6px;">
+                    Mutaxassislik
+                </label>
+                <div class="form-input-wrap">
+                    <i class="fas fa-stethoscope form-input-icon"></i>
+                    <select name="specialty" class="form-input">
+                        <option value="">Barcha mutaxassisliklar</option>
+                        {% for spec in specialties %}
+                        <option value="{{ spec.id }}"
+                                {% if selected_specialty == spec.id|stringformat:"s" %}selected{% endif %}>
+                            {{ spec.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label style="font-size:13px;font-weight:600;color:var(--dark);display:block;margin-bottom:6px;">
+                    Qidirish
+                </label>
+                <div class="form-input-wrap">
+                    <i class="fas fa-search form-input-icon"></i>
+                    <input type="text" name="q" class="form-input"
+                           placeholder="Shifohona nomi..." value="{{ search }}">
+                </div>
+            </div>
+
+            <div style="display:flex;gap:8px;">
+                <button type="submit" class="search-btn ripple">
+                    <i class="fas fa-search"></i>
+                </button>
+                {% if search or selected_region or selected_specialty %}
+                <a href="{% url 'hospital_list' %}" class="search-btn"
+                   style="background:var(--bg);color:var(--gray);border:1px solid var(--border);">
+                    <i class="fas fa-times"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+
+    <!-- NATIJALAR -->
+    <div class="clinics-grid">
+        {% for hospital in hospitals %}
+        <div class="clinic-card">
+            <div class="clinic-img">
+                {% if hospital.image %}
+                    <img src="{{ hospital.image.url }}" alt="{{ hospital.name }}"
+                         style="width:100%;height:100%;object-fit:cover;">
+                {% else %}
+                    <div class="clinic-img-bg clinic-img-bg-1">🏥</div>
+                {% endif %}
+                <span class="clinic-region-badge">
+                    {{ hospital.district.region.name|default:"O'zbekiston" }}
+                </span>
+                <span class="clinic-rating">
+                    <i class="fas fa-user-md"></i> {{ hospital.doctors.count }}
+                </span>
+            </div>
+
+            <div class="clinic-body">
+                <h3 class="clinic-name">
+                    {{ hospital.name }}
+                    {% if not hospital.is_active %}
+                        <span style="color:#ef4444;font-size:11px;font-weight:600;">[YOPIQ]</span>
+                    {% endif %}
+                </h3>
+
+                {% if not hospital.is_active and hospital.inactive_reason %}
+                <div style="font-size:12px;color:#ef4444;margin-bottom:8px;">
+                    <i class="fas fa-info-circle"></i> {{ hospital.inactive_reason }}
+                </div>
+                {% endif %}
+
+                <div class="clinic-address">
+                    <i class="fas fa-map-marker-alt" style="color:var(--primary);font-size:11px;"></i>
+                    {{ hospital.address }}
+                </div>
+
+                <!-- Ish vaqti -->
+                <div style="font-size:12px;color:var(--gray);margin:6px 0;display:flex;align-items:center;gap:6px;">
+                    <i class="fas fa-clock" style="color:var(--primary);"></i>
+                    {{ hospital.open_time|time:"H:i" }} – {{ hospital.close_time|time:"H:i" }}
+                    {% if hospital.works_weekend %}
+                        <span style="background:rgba(16,185,129,0.1);color:#10b981;
+                                     padding:1px 6px;border-radius:4px;font-size:11px;">
+                            Dam olish kunlari ham
+                        </span>
+                    {% endif %}
+                </div>
+
+                <div class="clinic-specs">
+                    {% for spec in hospital.specialties.all|slice:":3" %}
+                        <span class="clinic-spec-tag">{{ spec.name }}</span>
+                    {% endfor %}
+                    {% if hospital.specialties.count > 3 %}
+                        <span class="clinic-spec-tag" style="background:var(--bg);">
+                            +{{ hospital.specialties.count|add:"-3" }}
+                        </span>
+                    {% endif %}
+                </div>
+
+                <div class="clinic-footer">
+                    <div class="clinic-doctors">
+                        <i class="fas fa-user-md" style="color:var(--primary);"></i>
+                        <strong>{{ hospital.doctors.filter.count|default:hospital.doctors.count }}</strong> shifokor
+                    </div>
+                    {% if hospital.is_active %}
+                        <a href="{% url 'hospital_detail' hospital.pk %}" class="btn-book-clinic">
+                            Batafsil
+                        </a>
+                    {% else %}
+                        <span style="color:#ef4444;font-size:12px;font-weight:600;">Vaqtincha yopiq</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div style="grid-column:1/-1;text-align:center;padding:80px 20px;color:var(--gray);">
+            <i class="fas fa-search" style="font-size:48px;display:block;margin-bottom:16px;opacity:0.3;"></i>
+            <p style="font-size:18px;font-weight:600;margin-bottom:8px;">Hech narsa topilmadi</p>
+            <p style="font-size:14px;">Boshqa kalit so'z yoki filter bilan urinib ko'ring</p>
+            <a href="{% url 'hospital_list' %}" style="color:var(--primary);font-weight:600;
+                                                        text-decoration:none;margin-top:12px;display:inline-block;">
+                Filterni tozalash
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+
+</div>
+{% endblock %}
+

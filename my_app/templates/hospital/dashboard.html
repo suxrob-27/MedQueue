@@ -1,0 +1,309 @@
+{% extends 'components/base.html' %}
+{% load static %}
+
+{% block title %}{{ hospital.name }} — Panel{% endblock %}
+
+{% block main %}
+<div class="dashboard">
+
+    <!-- HEADER -->
+    <div class="dashboard-header">
+        <div class="dashboard-header-content">
+            <div class="dashboard-greeting">Shifohona paneli 🏥</div>
+            <div class="dashboard-name">{{ hospital.name }}</div>
+            <div style="font-size:14px;color:rgba(255,255,255,0.5);margin-top:4px;">
+                {{ hospital.district.region.name|default:"" }} ·
+                {{ hospital.get_type_display }}
+                {% if not hospital.is_active %}
+                    <span style="color:#ef4444;font-weight:600;"> · YOPIQ</span>
+                {% endif %}
+            </div>
+
+            <!-- Statistika -->
+            <div class="dashboard-quick-stats" style="margin-top:20px;">
+                <div class="quick-stat">
+                    <div class="quick-stat-icon" style="background:rgba(14,165,233,0.15);color:var(--primary);">
+                        <i class="fas fa-user-md"></i>
+                    </div>
+                    <div class="quick-stat-info">
+                        <div class="quick-stat-number">{{ active_doctors }}/{{ total_doctors }}</div>
+                        <div class="quick-stat-label">Aktiv/Jami shifokor</div>
+                    </div>
+                </div>
+                <div class="quick-stat">
+                    <div class="quick-stat-icon" style="background:rgba(16,185,129,0.15);color:var(--accent);">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <div class="quick-stat-info">
+                        <div class="quick-stat-number">{{ total_today }}</div>
+                        <div class="quick-stat-label">Bugungi navbat</div>
+                    </div>
+                </div>
+                <div class="quick-stat">
+                    <div class="quick-stat-icon" style="background:rgba(245,158,11,0.15);color:var(--warning);">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <div class="quick-stat-info">
+                        <div class="quick-stat-number">{{ total_this_month }}</div>
+                        <div class="quick-stat-label">Bu oy navbatlar</div>
+                    </div>
+                </div>
+                {% if pending_applications.count %}
+                <div class="quick-stat">
+                    <div class="quick-stat-icon" style="background:rgba(239,68,68,0.15);color:#ef4444;">
+                        <i class="fas fa-user-clock"></i>
+                    </div>
+                    <div class="quick-stat-info">
+                        <div class="quick-stat-number">{{ pending_applications.count }}</div>
+                        <div class="quick-stat-label">Yangi so'rov</div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- NAV TUGMALAR -->
+    <div style="background:white;border-bottom:1px solid var(--border);padding:0 40px;">
+        <div style="max-width:1200px;margin:0 auto;display:flex;gap:4px;">
+            <a href="{% url 'hospital_dashboard' %}"
+               style="padding:14px 20px;font-size:14px;font-weight:600;color:var(--primary);
+                      border-bottom:2px solid var(--primary);text-decoration:none;">
+                <i class="fas fa-th-large"></i> Bosh panel
+            </a>
+            <a href="{% url 'hospital_doctors' %}"
+               style="padding:14px 20px;font-size:14px;font-weight:500;color:var(--gray);
+                      border-bottom:2px solid transparent;text-decoration:none;">
+                <i class="fas fa-user-md"></i> Shifokorlar
+                {% if pending_applications.count %}
+                    <span style="background:#ef4444;color:white;border-radius:50%;
+                                 width:18px;height:18px;font-size:10px;display:inline-flex;
+                                 align-items:center;justify-content:center;margin-left:4px;">
+                        {{ pending_applications.count }}
+                    </span>
+                {% endif %}
+            </a>
+            <a href="{% url 'hospital_appointments' %}"
+               style="padding:14px 20px;font-size:14px;font-weight:500;color:var(--gray);
+                      border-bottom:2px solid transparent;text-decoration:none;">
+                <i class="fas fa-calendar-alt"></i> Navbatlar
+            </a>
+        </div>
+    </div>
+
+    <div style="max-width:1200px;margin:0 auto;padding:32px 40px;">
+
+        <!-- KUTAYOTGAN SO'ROVLAR -->
+        {% if pending_applications %}
+        <div class="section-card" style="border-left:4px solid #f59e0b;margin-bottom:24px;">
+            <div class="section-card-header">
+                <div class="section-card-title" style="color:#f59e0b;">
+                    <i class="fas fa-user-clock"></i>
+                    Yangi shifokor so'rovlari
+                    <span style="background:#f59e0b;color:white;border-radius:20px;
+                                 padding:2px 10px;font-size:12px;margin-left:8px;">
+                        {{ pending_applications.count }}
+                    </span>
+                </div>
+            </div>
+            <div class="section-card-body">
+                {% for app in pending_applications %}
+                <div style="display:flex;align-items:center;justify-content:space-between;
+                            padding:14px;border:1px solid var(--border);border-radius:var(--radius);
+                            margin-bottom:10px;" id="app-{{ app.pk }}">
+                    <div style="display:flex;align-items:center;gap:14px;">
+                        <div style="width:44px;height:44px;background:var(--gradient-1);
+                                    border-radius:50%;display:flex;align-items:center;
+                                    justify-content:center;color:white;font-size:16px;font-weight:700;">
+                            {{ app.user.first_name|first|upper }}{{ app.user.last_name|first|upper }}
+                        </div>
+                        <div>
+                            <div style="font-weight:700;color:var(--dark);">
+                                {{ app.user.get_full_name }}
+                            </div>
+                            <div style="font-size:13px;color:var(--gray);margin-top:2px;">
+                                {% if app.specialty %}
+                                    <span style="color:var(--primary);">{{ app.specialty.name }}</span> ·
+                                {% endif %}
+                                {{ app.experience_years }} yil tajriba ·
+                                {{ app.user.phone|default:"Tel yo'q" }}
+                            </div>
+                            {% if app.education %}
+                            <div style="font-size:12px;color:var(--gray-light);margin-top:2px;">
+                                <i class="fas fa-graduation-cap"></i> {{ app.education }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button onclick="approveDoctor({{ app.pk }})"
+                                style="background:#10b981;border:none;color:white;
+                                       padding:8px 16px;border-radius:var(--radius-sm);
+                                       font-size:13px;font-weight:600;cursor:pointer;">
+                            <i class="fas fa-check"></i> Tasdiqlash
+                        </button>
+                        <button onclick="openRejectModal({{ app.pk }})"
+                                style="background:none;border:1px solid #ef4444;color:#ef4444;
+                                       padding:8px 16px;border-radius:var(--radius-sm);
+                                       font-size:13px;font-weight:600;cursor:pointer;">
+                            <i class="fas fa-times"></i> Rad etish
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- BUGUNGI NAVBATLAR (soat bo'yicha) -->
+        <div class="section-card">
+            <div class="section-card-header">
+                <div class="section-card-title">
+                    <i class="fas fa-calendar-day"></i>
+                    Bugungi navbatlar — {{ today|date:"d.m.Y" }}
+                </div>
+                <a href="{% url 'hospital_appointments' %}" class="section-card-action">
+                    Barchasi →
+                </a>
+            </div>
+            <div class="section-card-body" style="padding:0;">
+
+                {% if today_appointments %}
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:var(--bg);border-bottom:1px solid var(--border);">
+                            <th style="padding:12px 20px;text-align:left;font-size:12px;
+                                       color:var(--gray);font-weight:600;">SOAT</th>
+                            <th style="padding:12px 20px;text-align:left;font-size:12px;
+                                       color:var(--gray);font-weight:600;">BEMOR</th>
+                            <th style="padding:12px 20px;text-align:left;font-size:12px;
+                                       color:var(--gray);font-weight:600;">SHIFOKOR</th>
+                            <th style="padding:12px 20px;text-align:left;font-size:12px;
+                                       color:var(--gray);font-weight:600;">MUTAXASSISLIK</th>
+                            <th style="padding:12px 20px;text-align:left;font-size:12px;
+                                       color:var(--gray);font-weight:600;">STATUS</th>
+                            <th style="padding:12px 20px;text-align:left;font-size:12px;
+                                       color:var(--gray);font-weight:600;">SABAB</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for appt in today_appointments %}
+                        <tr style="border-bottom:1px solid var(--border);transition:background 0.2s;"
+                            onmouseover="this.style.background='var(--bg)'"
+                            onmouseout="this.style.background=''">
+                            <td style="padding:14px 20px;">
+                                <span style="background:var(--primary-light);color:var(--primary);
+                                             padding:4px 12px;border-radius:20px;
+                                             font-weight:700;font-size:14px;">
+                                    {{ appt.appointment_time|time:"H:i" }}
+                                </span>
+                            </td>
+                            <td style="padding:14px 20px;">
+                                <div style="font-weight:600;color:var(--dark);font-size:14px;">
+                                    {{ appt.patient.get_full_name }}
+                                </div>
+                                <div style="font-size:12px;color:var(--gray);">
+                                    {{ appt.patient.phone|default:"—" }}
+                                </div>
+                            </td>
+                            <td style="padding:14px 20px;">
+                                <div style="font-weight:600;color:var(--dark);font-size:14px;">
+                                    Dr. {{ appt.doctor.user.get_full_name }}
+                                </div>
+                            </td>
+                            <td style="padding:14px 20px;">
+                                <span style="background:var(--primary-light);color:var(--primary);
+                                             padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">
+                                    {{ appt.doctor.specialty.name|default:"—" }}
+                                </span>
+                            </td>
+                            <td style="padding:14px 20px;">
+                                <span style="padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;
+                                    {% if appt.status == 'pending' %}background:rgba(245,158,11,0.1);color:#f59e0b;
+                                    {% elif appt.status == 'confirmed' %}background:rgba(14,165,233,0.1);color:#0ea5e9;
+                                    {% endif %}">
+                                    {{ appt.get_status_display }}
+                                </span>
+                            </td>
+                            <td style="padding:14px 20px;font-size:13px;color:var(--gray);max-width:200px;">
+                                {{ appt.reason|truncatechars:40|default:"—" }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div style="text-align:center;padding:60px;color:var(--gray);">
+                    <i class="fas fa-calendar-check" style="font-size:40px;display:block;
+                                                             margin-bottom:12px;opacity:0.3;"></i>
+                    Bugun navbat yo'q
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rad etish modali -->
+<div id="rejectModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);
+                              z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--card);border-radius:var(--radius-lg);padding:24px;width:380px;max-width:90vw;">
+        <h3 style="margin-bottom:12px;color:var(--dark);">So'rovni rad etish</h3>
+        <textarea id="rejectReason" rows="3"
+                  style="width:100%;border:1px solid var(--border);border-radius:var(--radius);
+                         padding:10px;font-size:14px;resize:none;background:var(--bg);color:var(--dark);"
+                  placeholder="Rad etish sababi (ixtiyoriy)..."></textarea>
+        <div style="display:flex;gap:12px;margin-top:14px;">
+            <button onclick="closeRejectModal()"
+                    style="flex:1;padding:10px;border:1px solid var(--border);border-radius:var(--radius);
+                           background:none;cursor:pointer;color:var(--gray);font-weight:600;">Bekor</button>
+            <button onclick="confirmReject()"
+                    style="flex:1;padding:10px;background:#ef4444;border:none;border-radius:var(--radius);
+                           color:white;cursor:pointer;font-weight:600;">Rad etish</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let rejectId = null;
+
+async function approveDoctor(id) {
+    if (!confirm("Shifokorni tasdiqlaysizmi? Profil avtomatik yaratiladi.")) return;
+    const fd = new FormData();
+    fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    const res  = await fetch(`/shifohona/tasdiqlash/${id}/`, {method:'POST', body:fd});
+    const data = await res.json();
+    if (data.success) {
+        document.getElementById(`app-${id}`).remove();
+        showToast('Tasdiqlandi!', data.message, 'success');
+    } else {
+        showToast('Xato', data.message, 'error');
+    }
+}
+
+function openRejectModal(id) {
+    rejectId = id;
+    document.getElementById('rejectModal').style.display = 'flex';
+}
+function closeRejectModal() {
+    rejectId = null;
+    document.getElementById('rejectModal').style.display = 'none';
+}
+async function confirmReject() {
+    if (!rejectId) return;
+    const reason = document.getElementById('rejectReason').value;
+    const fd = new FormData();
+    fd.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    fd.append('reason', reason);
+    const res  = await fetch(`/shifohona/rad-etish/${rejectId}/`, {method:'POST', body:fd});
+    const data = await res.json();
+    if (data.success) {
+        document.getElementById(`app-${rejectId}`).remove();
+        closeRejectModal();
+        showToast("Rad etildi", data.message, 'warning');
+    }
+}
+</script>
+{% endblock %}

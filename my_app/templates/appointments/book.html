@@ -1,0 +1,206 @@
+{% extends 'components/base.html' %}
+{% load static %}
+
+{% block title %}Navbat olish — MedQueue{% endblock %}
+
+{% block main %}
+<div style="max-width:680px;margin:0 auto;padding:40px 20px;">
+
+    <h1 style="font-size:24px;font-weight:800;color:var(--dark);margin-bottom:8px;">
+        <i class="fas fa-calendar-plus" style="color:var(--primary);"></i> Navbat olish
+    </h1>
+    <p style="color:var(--gray);margin-bottom:32px;">Shifokor va qulay vaqtni tanlang</p>
+
+    {% if error %}
+    <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);
+                border-radius:var(--radius);padding:14px 16px;margin-bottom:24px;
+                color:#ef4444;display:flex;align-items:center;gap:10px;">
+        <i class="fas fa-exclamation-circle" style="font-size:18px;"></i>
+        <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="{% url 'book_appointment' %}"
+          style="background:var(--card);border-radius:var(--radius-lg);
+                 padding:28px;border:1px solid var(--border);">
+        {% csrf_token %}
+
+        <!-- Shifohona -->
+        <div class="form-group">
+            <label class="form-label">Shifohona</label>
+            <div class="form-input-wrap">
+                <i class="fas fa-hospital form-input-icon"></i>
+                <select name="hospital_id" id="hospitalSelect" class="form-input"
+                        onchange="loadDoctors()" required>
+                    <option value="">Shifohona tanlang</option>
+                    {% for h in hospitals %}
+                    <option value="{{ h.pk }}"
+                            {% if request.GET.hospital_id == h.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ h.name }} — {{ h.district.region.name|default:"" }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Shifokor (AJAX bilan yuklanadi) -->
+        <div class="form-group">
+            <label class="form-label">Shifokor</label>
+            <div class="form-input-wrap">
+                <i class="fas fa-user-md form-input-icon"></i>
+                <select name="doctor_id" id="doctorSelect" class="form-input"
+                        onchange="loadSlots()" required>
+                    <option value="">Avval shifohona tanlang</option>
+                    {% if request.GET.doctor_id %}
+                    <option value="{{ request.GET.doctor_id }}" selected>Tanlangan shifokor</option>
+                    {% endif %}
+                </select>
+            </div>
+            <div id="doctorInfo" style="display:none;margin-top:8px;padding:10px 14px;
+                                        background:rgba(14,165,233,0.08);border-radius:var(--radius);
+                                        font-size:13px;color:var(--dark);">
+            </div>
+        </div>
+
+        <!-- Sana -->
+        <div class="form-group">
+            <label class="form-label">Sana</label>
+            <div class="form-input-wrap">
+                <i class="fas fa-calendar form-input-icon"></i>
+                <input type="date" name="appointment_date" id="dateInput"
+                       class="form-input" onchange="loadSlots()" required
+                       min="{{ today|date:'Y-m-d' }}">
+            </div>
+        </div>
+
+        <!-- Vaqt slotlari -->
+        <div class="form-group">
+            <label class="form-label">Vaqt</label>
+            <div id="slotsContainer">
+                <p style="font-size:13px;color:var(--gray);">
+                    <i class="fas fa-info-circle"></i> Shifokor va sanani tanlang
+                </p>
+            </div>
+            <input type="hidden" name="appointment_time" id="timeInput" required>
+        </div>
+
+        <!-- Sabab -->
+        <div class="form-group">
+            <label class="form-label">
+                Murojaat sababi
+                <span style="color:var(--gray);font-weight:400;">(ixtiyoriy)</span>
+            </label>
+            <div class="form-input-wrap" style="align-items:flex-start;">
+                <i class="fas fa-notes-medical form-input-icon" style="margin-top:12px;"></i>
+                <textarea name="reason" class="form-input" rows="3"
+                          placeholder="Kasallik belgilari, shikoyat..."
+                          style="resize:vertical;padding-top:10px;"></textarea>
+            </div>
+        </div>
+
+        <button type="submit" class="btn-form-submit ripple" id="submitBtn" disabled
+                style="opacity:0.5;">
+            <i class="fas fa-calendar-check"></i> Navbatni tasdiqlash
+        </button>
+    </form>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const hospitalSelect = document.getElementById('hospitalSelect');
+const doctorSelect   = document.getElementById('doctorSelect');
+const dateInput      = document.getElementById('dateInput');
+const timeInput      = document.getElementById('timeInput');
+const submitBtn      = document.getElementById('submitBtn');
+
+// URL parametrlardan doctor_id va hospital_id olish
+const params = new URLSearchParams(window.location.search);
+if (params.get('hospital_id')) {
+    hospitalSelect.value = params.get('hospital_id');
+    loadDoctors();
+}
+
+async function loadDoctors() {
+    const hospitalId = hospitalSelect.value;
+    if (!hospitalId) return;
+
+    doctorSelect.innerHTML = '<option value="">Yuklanmoqda...</option>';
+
+    // Shifohona shifokorlarini olish — oddiy URL orqali
+    // (Kelajakda AJAX endpoint qo'shish mumkin, hozir sahifadan olamiz)
+    const res = await fetch(`/shifohonalar/${hospitalId}/`);
+    const text = await res.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/html');
+
+    // Shifokorlar ro'yxatidan option yaratish
+    const doctorCards = doc.querySelectorAll('[data-doctor-id]');
+    doctorSelect.innerHTML = '<option value="">Shifokor tanlang</option>';
+
+    if (doctorCards.length === 0) {
+        doctorSelect.innerHTML = '<option value="">Mavjud shifokor yo\'q</option>';
+        return;
+    }
+
+    doctorCards.forEach(card => {
+        const opt = document.createElement('option');
+        opt.value = card.dataset.doctorId;
+        opt.textContent = card.dataset.doctorName;
+        if (params.get('doctor_id') == card.dataset.doctorId) opt.selected = true;
+        doctorSelect.appendChild(opt);
+    });
+
+    if (params.get('doctor_id')) loadSlots();
+}
+
+async function loadSlots() {
+    const doctorId = doctorSelect.value;
+    const date = dateInput.value;
+
+    if (!doctorId || !date) return;
+
+    const container = document.getElementById('slotsContainer');
+    container.innerHTML = '<p style="font-size:13px;color:var(--gray);">⏳ Yuklanmoqda...</p>';
+    timeInput.value = '';
+    submitBtn.disabled = true;
+    submitBtn.style.opacity = '0.5';
+
+    try {
+        const res = await fetch(`/api/bosh-vaqtlar/?doctor_id=${doctorId}&date=${date}`);
+        const data = await res.json();
+
+        if (data.message) {
+            container.innerHTML = `<p style="font-size:13px;color:#ef4444;">
+                <i class="fas fa-info-circle"></i> ${data.message}</p>`;
+            return;
+        }
+
+        if (!data.slots || data.slots.length === 0) {
+            container.innerHTML = '<p style="font-size:13px;color:var(--gray);">Bu kunda slot yo\'q</p>';
+            return;
+        }
+
+        container.innerHTML = '<div class="time-slots">' +
+            data.slots.map(slot => `
+                <div class="time-slot ${slot.available ? '' : 'booked'}"
+                     ${slot.available ? `onclick="selectSlot('${slot.time}', this)"` : ''}>
+                    ${slot.time}
+                </div>
+            `).join('') +
+            '</div>';
+    } catch(e) {
+        container.innerHTML = '<p style="font-size:13px;color:#ef4444;">Xatolik yuz berdi</p>';
+    }
+}
+
+function selectSlot(time, el) {
+    document.querySelectorAll('.time-slot.selected').forEach(s => s.classList.remove('selected'));
+    el.classList.add('selected');
+    timeInput.value = time;
+    submitBtn.disabled = false;
+    submitBtn.style.opacity = '1';
+}
+</script>
+{% endblock %}
